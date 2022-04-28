@@ -1,0 +1,76 @@
+image:
+  repository: 'mitodl/edxapp'
+  pullPolicy: IfNotPresent
+  tag: latest
+
+environment: ""
+
+# Vault client settings
+vault:
+  # vault.enabled -- Should the application use Vault to grab secrets
+  enabled: false
+  # vault.authMountPoint -- The kubernetes auth backend to use - this needs to match the cluster name being deployed to (`<env>-eks-cluster`)
+  authMountPoint: "kubernetes"
+  # vault.url -- The address of the vault instance to use
+  url: ""
+  # vault.secretRootPath -- Root path to look for secrets in Vault - will default to `secret/edxapp
+  secretRootPath: ""
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ''
+
+service:
+  type: ClusterIP
+  port: 8000
+
+resources: {}
+  # limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 100
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80
+
+livenessProbe: {}
+
+readinessProbe: {}
+
+# kubernetes ingress specification
+ingress:
+  enabled: false
+  acmCertificateArn: ""
+  annotations: {}
+    # kubernetes.io/ingress.class: alb
+    # alb.ingress.kubernetes.io/scheme: internet-facing
+    # alb.ingress.kubernetes.io/target-type: ip
+  hosts: []
+    # - host: edx-cms-dev.odl.mit.edu
+    #   app: cms
+    #   port: 8000
+    # - host: edx-lms-dev.odl.mit.edu
+    #   app: lms
+    #   port: 8000
+  tls: []
+    # - hosts:
+    #     - "edx-cms-dev.odl.mit.edu"
+    # - hosts:
+    #     - "edx-lms-dev.odl.mit.edu"
+podSecurityContext: {}
+  # fsGroup: 2000
+
+# cms_config: ""
+# lms_config: ""
+configs: {}

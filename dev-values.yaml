@@ -1,0 +1,376 @@
+image:
+  repository: 'mitodl/edxapp'
+  pullPolicy: IfNotPresent
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: latest
+
+environment: "dev"
+
+# Vault client settings
+vault:
+  # vault.enabled -- Should the application use Vault to grab secrets
+  enabled: false
+  # vault.authMountPoint -- The kubernetes auth backend to use - this needs to match the cluster name being deployed to (`<env>-eks-cluster`)
+  authMountPoint: "kubernetes"
+  # vault.url -- The address of the vault instance to use
+  url: ""
+  # vault.secretRootPath -- Root path to look for secrets in Vault - will default to `secret/edxapp
+  secretRootPath: ""
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: false
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ''
+
+resources: {}
+  # limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 100
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80
+
+livenessProbe: {}
+
+readinessProbe: {}
+
+# kubernetes ingress specification
+ingress:
+  enabled: true
+  acmCertificateArn: "arn:aws:acm:us-east-1:610119931565:certificate/0b8b39d2-89a8-440f-8d07-876a66fcbc8a"
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+  hosts:
+    - host: edxapp-cms-dev.odl.mit.edu
+      app: cms
+      port: 8000
+    - host: edxapp-lms-dev.odl.mit.edu
+      app: lms
+      port: 8000
+  tls:
+    - hosts:
+        - "edxapp-cms-dev.odl.mit.edu"
+    - hosts:
+        - "edxapp-lms-dev.odl.mit.edu"
+
+fullnameOverride: "edxapp-dev"
+configs:
+  cms.env.yaml:
+    SITE_NAME: edxapp-cms-dev.odl.mit.edu
+    ELASTIC_SEARCH_CONFIG:
+      - host: elasticsearch
+        port: 9200
+        use_ssl: false
+    BOOK_URL: ''
+    LOG_DIR: /openedx/data/logs
+    LOGGING_ENV: sandbox
+    OAUTH_OIDC_ISSUER: 'https://edxapp-lms-dev.odl.mit.edu/oauth2'
+    PLATFORM_NAME: "MitOdl Dev Edx"
+    DOC_STORE_CONFIG: &docstore_config
+      host: mongodb.openedx.svc.cluster.local
+      port: 27017
+      ssl: false
+      db: openedx
+      collection: modulestore
+      connectTimeoutMS: 2000
+      socketTimeoutMS: 3000
+    FEATURES:
+      CERTIFICATES_HTML_VIEW: true
+      PREVIEW_LMS_BASE: preview.edxapp-lms-dev.odl.mit.edu
+      ENABLE_COURSEWARE_INDEX: true
+      ENABLE_CSMH_EXTENDED: false
+      ENABLE_LEARNER_RECORDS: false
+      ENABLE_LIBRARY_INDEX: true
+      MILESTONES_APP: true
+      ENABLE_PREREQUISITE_COURSES: true
+    LMS_ROOT_URL: 'https://edxapp-lms-dev.odl.mit.edu'
+    CMS_ROOT_URL: 'https://edxapp-cms-dev.odl.mit.edu'
+    CMS_BASE: edxapp-cms-dev.odl.mit.edu
+    LMS_BASE: edxapp-lms-dev.odl.mit.edu
+    CONTACT_EMAIL: amendonc@mit.edu
+    CELERY_BROKER_TRANSPORT: redis
+    CELERY_BROKER_HOSTNAME: 'redis-master:6379'
+    CELERY_BROKER_VHOST: '0'
+    CELERY_BROKER_USER: ''
+    CELERY_BROKER_PASSWORD: ''
+    ALTERNATE_WORKER_QUEUES: lms
+    ENABLE_COMPREHENSIVE_THEMING: true
+    COMPREHENSIVE_THEME_DIRS:
+      - /openedx/edx-platform/
+    STATIC_ROOT_BASE: /openedx/staticfiles
+    EMAIL_BACKEND: django.core.mail.backends.smtp.EmailBackend
+    EMAIL_HOST: smtp.openedx.svc.cluster.local
+    EMAIL_PORT: 8025
+    EMAIL_USE_TLS: false
+    HTTPS: 'on'
+    LANGUAGE_CODE: en
+    SESSION_COOKIE_DOMAIN: edxapp-cms-dev.odl.mit.edu
+    CACHES:
+      default:
+        KEY_PREFIX: default
+        KEY_FUNCTION: common.djangoapps.util.memcache.safe_key
+        VERSION: '1'
+        BACKEND: django_redis.cache.RedisCache
+        LOCATION: 'redis://@redis-master:6379/1'
+        OPTIONS:
+          CLIENT_CLASS: django_redis.client.DefaultClient
+          PASSWORD: xAS7pMp2KP
+      general:
+        KEY_PREFIX: general
+        KEY_FUNCTION: common.djangoapps.util.memcache.safe_key
+        BACKEND: django_redis.cache.RedisCache
+        LOCATION: 'redis://@redis-master:6379/1'
+        OPTIONS:
+          CLIENT_CLASS: django_redis.client.DefaultClient
+          PASSWORD: xAS7pMp2KP
+      mongo_metadata_inheritance:
+        KEY_PREFIX: mongo_metadata_inheritance
+        KEY_FUNCTION: common.djangoapps.util.memcache.safe_key
+        TIMEOUT: 300
+        BACKEND: django_redis.cache.RedisCache
+        LOCATION: 'redis://@redis-master:6379/1'
+        OPTIONS:
+          CLIENT_CLASS: django_redis.client.DefaultClient
+          PASSWORD: xAS7pMp2KP
+      staticfiles:
+        KEY_PREFIX: staticfiles_cms
+        KEY_FUNCTION: common.djangoapps.util.memcache.safe_key
+        BACKEND: django.core.cache.backends.locmem.LocMemCache
+        LOCATION: staticfiles_cms
+        OPTIONS:
+          CLIENT_CLASS: django_redis.client.DefaultClient
+          PASSWORD: xAS7pMp2KP
+      configuration:
+        KEY_PREFIX: configuration
+        KEY_FUNCTION: common.djangoapps.util.memcache.safe_key
+        BACKEND: django_redis.cache.RedisCache
+        LOCATION: 'redis://@redis-master:6379/1'
+        OPTIONS:
+          CLIENT_CLASS: django_redis.client.DefaultClient
+          PASSWORD: xAS7pMp2KP
+      celery:
+        KEY_PREFIX: celery
+        KEY_FUNCTION: common.djangoapps.util.memcache.safe_key
+        TIMEOUT: '7200'
+        BACKEND: django_redis.cache.RedisCache
+        LOCATION: 'redis://@redis-master:6379/1'
+        OPTIONS:
+          CLIENT_CLASS: django_redis.client.DefaultClient
+          PASSWORD: xAS7pMp2KP
+      course_structure_cache:
+        KEY_PREFIX: course_structure
+        KEY_FUNCTION: common.djangoapps.util.memcache.safe_key
+        TIMEOUT: '7200'
+        BACKEND: django_redis.cache.RedisCache
+        LOCATION: 'redis://@redis-master:6379/1'
+        OPTIONS:
+          CLIENT_CLASS: django_redis.client.DefaultClient
+          PASSWORD: xAS7pMp2KP
+    SECRET_KEY: 2eNFxqCSqXmwlR8NH3VwUfmP
+    AWS_ACCESS_KEY_ID: ''
+    AWS_SECRET_ACCESS_KEY: ''
+    CONTENTSTORE: 
+      ENGINE: "xmodule.contentstore.mongo.MongoContentStore"
+      DOC_STORE_CONFIG: 
+        <<: *docstore_config
+    XQUEUE_INTERFACE:
+      django_auth: null
+      url: null
+    DATABASES:
+      default:
+        ENGINE: django.db.backends.mysql
+        HOST: mysql.edxapp
+        PORT: 3306
+        NAME: openedx
+        USER: openedx
+        PASSWORD: mitodl
+        ATOMIC_REQUESTS: true
+        OPTIONS:
+          init_command: SET sql_mode='STRICT_TRANS_TABLES'
+    EMAIL_HOST_USER: ''
+    EMAIL_HOST_PASSWORD: ''
+  lms_config:
+    SITE_NAME: edxapp-lms-dev.odl.mit.edu
+    ELASTIC_SEARCH_CONFIG:
+      - host: elasticsearch
+        port: 9200
+        use_ssl: false
+    BOOK_URL: ''
+    LOG_DIR: /openedx/data/logs
+    LOGGING_ENV: sandbox
+    OAUTH_OIDC_ISSUER: 'https://edxapp-lms-dev.odl.mit.edu/oauth2'
+    PLATFORM_NAME: "MitOdl Dev Edx"
+    DOC_STORE_CONFIG: &docstore_config
+      host: mongodb.openedx.svc.cluster.local
+      port: 27017
+      ssl: false
+      db: openedx
+      collection: modulestore
+      connectTimeoutMS: 2000
+      socketTimeoutMS: 3000
+    FEATURES:
+      CERTIFICATES_HTML_VIEW: true
+      PREVIEW_LMS_BASE: preview.edxapp-lms-dev.odl.mit.edu
+      ENABLE_CORS_HEADERS: true
+      ENABLE_COURSE_DISCOVERY: true
+      ENABLE_COURSEWARE_SEARCH: true
+      ENABLE_CSMH_EXTENDED: false
+      ENABLE_DASHBOARD_SEARCH: true
+      ENABLE_COMBINED_LOGIN_REGISTRATION: true
+      ENABLE_GRADE_DOWNLOADS: true
+      ENABLE_LEARNER_RECORDS: false
+      ENABLE_MOBILE_REST_API: true
+      ENABLE_OAUTH2_PROVIDER: true
+      ENABLE_THIRD_PARTY_AUTH: true
+      MILESTONES_APP: true
+      ENABLE_PREREQUISITE_COURSES: true
+    LMS_ROOT_URL: 'https://edxapp-lms-dev.odl.mit.edu'
+    CMS_ROOT_URL: 'https://edxapp-cms-dev.odl.mit.edu'
+    CMS_BASE: edxapp-cms-dev.odl.mit.edu
+    LMS_BASE: edxapp-lms-dev.odl.mit.edu
+    CONTACT_EMAIL: amendonc@mit.edu
+    CELERY_BROKER_TRANSPORT: redis
+    CELERY_BROKER_HOSTNAME: 'redis:6379'
+    CELERY_BROKER_VHOST: '0'
+    CELERY_BROKER_USER: ''
+    CELERY_BROKER_PASSWORD: ''
+    ALTERNATE_WORKER_QUEUES: cms
+    ENABLE_COMPREHENSIVE_THEMING: true
+    COMPREHENSIVE_THEME_DIRS:
+      - /openedx/edx-platform/
+    STATIC_ROOT_BASE: /openedx/staticfiles
+    EMAIL_BACKEND: django.core.mail.backends.smtp.EmailBackend
+    EMAIL_HOST: smtp
+    EMAIL_PORT: 8025
+    EMAIL_USE_TLS: false
+    ACE_ROUTING_KEY: edx.lms.core.default
+    HTTPS: 'on'
+    LANGUAGE_CODE: en
+    SESSION_COOKIE_DOMAIN: edxapp-lms-dev.odl.mit.edu
+    CACHES:
+      default:
+        KEY_PREFIX: default
+        KEY_FUNCTION: common.djangoapps.util.memcache.safe_key
+        VERSION: '1'
+        BACKEND: django_redis.cache.RedisCache
+        LOCATION: 'redis://@redis-master:6379/1'
+        OPTIONS:
+          CLIENT_CLASS: django_redis.client.DefaultClient
+          PASSWORD: xAS7pMp2KP
+      general:
+        KEY_PREFIX: general
+        KEY_FUNCTION: common.djangoapps.util.memcache.safe_key
+        BACKEND: django_redis.cache.RedisCache
+        LOCATION: 'redis://@redis-master:6379/1'
+        OPTIONS:
+          CLIENT_CLASS: django_redis.client.DefaultClient
+          PASSWORD: xAS7pMp2KP
+      mongo_metadata_inheritance:
+        KEY_PREFIX: mongo_metadata_inheritance
+        KEY_FUNCTION: common.djangoapps.util.memcache.safe_key
+        TIMEOUT: 300
+        BACKEND: django_redis.cache.RedisCache
+        LOCATION: 'redis://@redis-master:6379/1'
+        OPTIONS:
+          CLIENT_CLASS: django_redis.client.DefaultClient
+          PASSWORD: xAS7pMp2KP
+      staticfiles:
+        KEY_PREFIX: staticfiles_lms
+        BACKEND: django.core.cache.backends.locmem.LocMemCache
+        KEY_FUNCTION: common.djangoapps.util.memcache.safe_key
+        LOCATION: staticfiles_lms
+        OPTIONS:
+          CLIENT_CLASS: django_redis.client.DefaultClient
+          PASSWORD: xAS7pMp2KP
+      configuration:
+        KEY_PREFIX: configuration
+        KEY_FUNCTION: common.djangoapps.util.memcache.safe_key
+        BACKEND: django_redis.cache.RedisCache
+        LOCATION: 'redis://@redis-master:6379/1'
+        OPTIONS:
+          CLIENT_CLASS: django_redis.client.DefaultClient
+          PASSWORD: xAS7pMp2KP
+      celery:
+        KEY_PREFIX: celery
+        KEY_FUNCTION: common.djangoapps.util.memcache.safe_key
+        TIMEOUT: '7200'
+        BACKEND: django_redis.cache.RedisCache
+        LOCATION: 'redis://@redis-master:6379/1'
+        OPTIONS:
+          CLIENT_CLASS: django_redis.client.DefaultClient
+          PASSWORD: xAS7pMp2KP
+      course_structure_cache:
+        KEY_PREFIX: course_structure
+        KEY_FUNCTION: common.djangoapps.util.memcache.safe_key
+        TIMEOUT: '7200'
+        BACKEND: django_redis.cache.RedisCache
+        LOCATION: 'redis://@redis-master:6379/1'
+        OPTIONS:
+          CLIENT_CLASS: django_redis.client.DefaultClient
+          PASSWORD: xAS7pMp2KP
+      ora2-storage:
+        KEY_PREFIX: ora2-storage
+        KEY_FUNCTION: common.djangoapps.util.memcache.safe_key
+        BACKEND: django_redis.cache.RedisCache
+        LOCATION: 'redis://@redis-master:6379/1'
+        OPTIONS:
+          CLIENT_CLASS: django_redis.client.DefaultClient
+          PASSWORD: xAS7pMp2KP
+    SECRET_KEY: 2eNFxqCSqXmwlR8NH3VwUfmP
+    AWS_ACCESS_KEY_ID: ''
+    AWS_SECRET_ACCESS_KEY: ''
+    CONTENTSTORE: 
+      ENGINE: "xmodule.contentstore.mongo.MongoContentStore"
+      DOC_STORE_CONFIG: 
+        <<: *docstore_config
+    XQUEUE_INTERFACE:
+      django_auth: null
+      url: null
+    DATABASES:
+      default:
+        ENGINE: django.db.backends.mysql
+        HOST: mysql.edxapp.svc.cluster.local
+        PORT: 3306
+        NAME: openedx
+        USER: openedx
+        PASSWORD: mitodl
+        ATOMIC_REQUESTS: true
+        OPTIONS:
+          init_command: SET sql_mode='STRICT_TRANS_TABLES'
+    EMAIL_HOST_USER: ''
+    EMAIL_HOST_PASSWORD: ''
+    MODULESTORE:
+      default:
+        ENGINE: xmodule.modulestore.mixed.MixedModuleStore
+        OPTIONS:
+          mappings: {}
+          stores:
+          - ENGINE: xmodule.modulestore.split_mongo.split_draft.DraftVersioningModuleStore
+            NAME: split
+            DOC_STORE_CONFIG:
+              <<: *docstore_config
+            OPTIONS:
+              default_class: xmodule.hidden_module.HiddenDescriptor
+              fs_root: /edx/var/edxapp/data
+              render_template: common.djangoapps.edxmako.shortcuts.render_to_string
+          - ENGINE: xmodule.modulestore.mongo.DraftMongoModuleStore
+            NAME: draft
+            DOC_STORE_CONFIG:
+              <<: *docstore_config
+            OPTIONS:
+              default_class: xmodule.hidden_module.HiddenDescriptor
+              fs_root: /edx/var/edxapp/data
+              render_template: common.djangoapps.edxmako.shortcuts.render_to_string

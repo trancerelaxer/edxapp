@@ -1,0 +1,139 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "edxapp.fullname" . }}-cms
+  labels:
+    app.kubernetes.io/name: {{ include "edxapp.fullname" . }}-cms
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "edxapp.fullname" . }}-cms
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "edxapp.fullname" . }}-cms
+    spec:
+      securityContext:
+        runAsUser: 0
+        runAsGroup: 0
+      initContainers:
+        - name: migrate-db
+          image: {{ printf "%s:%s" .Values.image.repository .Values.image.tag }}
+          imagePullPolicy: Always
+          command: ['sh', '-c']
+          securityContext:
+            allowPrivilegeEscalation: true
+          args: 
+            - |
+              python manage.py cms migrate
+          env:
+          - name: SERVICE_VARIANT
+            value: cms
+          - name: DJANGO_SETTINGS_MODULE
+            value: "cms.envs.production"
+          - name: LANG
+            value: "en_US.UTF-8"
+          - name: STUDIO_CFG
+            value: "/openedx/etc/config/cms.env.yaml"
+          volumeMounts:
+          - name: config
+            mountPath: /openedx/etc/config
+      containers:
+        - name: cms
+          image: {{ printf "%s:%s" .Values.image.repository .Values.image.tag }}
+          imagePullPolicy: Always
+          env:
+          - name: SERVICE_VARIANT
+            value: cms
+          - name: DJANGO_SETTINGS_MODULE
+            value: "cms.envs.production"
+          - name: LANG
+            value: "en_US.UTF-8"
+          - name: STUDIO_CFG
+            value: "/openedx/etc/config/cms.env.yaml"
+          ports:
+            - containerPort: 8000
+          volumeMounts:
+          - name: config
+            mountPath: /openedx/etc/config
+          resources:
+            requests:
+              memory: 2Gi
+          securityContext:
+            allowPrivilegeEscalation: true
+      volumes:
+        - name: config
+          configMap:
+            name: openedx-config
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "edxapp.fullname" . }}-lms
+  labels:
+    app.kubernetes.io/name: {{ include "edxapp.fullname" . }}-lms
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "edxapp.fullname" . }}-lms
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "edxapp.fullname" . }}-lms
+    spec:
+      securityContext:
+        runAsUser: 0
+        runAsGroup: 0
+      serviceAccountName: {{ include "edxapp.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      initContainers:
+        - name: migrate-db
+          imagePullPolicy: Always
+          image: {{ printf "%s:%s" .Values.image.repository .Values.image.tag }}
+          command: ['sh', '-c']
+          args: 
+            - |
+              python manage.py lms migrate
+          env:
+          - name: SERVICE_VARIANT
+            value: lms
+          - name: DJANGO_SETTINGS_MODULE
+            value: "lms.envs.production"
+          - name: LANG
+            value: "en_US.UTF-8"
+          - name: LMS_CFG
+            value: "/openedx/etc/config/lms.env.yaml" 
+          volumeMounts:
+          - name: config
+            mountPath: /openedx/etc/config
+          securityContext:
+            allowPrivilegeEscalation: true
+      containers:
+        - name: lms
+          image: {{ printf "%s:%s" .Values.image.repository .Values.image.tag }}
+          imagePullPolicy: Always
+          env:
+          - name: SERVICE_VARIANT
+            value: lms
+          - name: DJANGO_SETTINGS_MODULE
+            value: "lms.envs.production"
+          - name: LANG
+            value: "en_US.UTF-8"
+          - name: LMS_CFG
+            value: "/openedx/etc/config/lms.env.yaml" 
+          ports:
+            - containerPort: 8000
+          volumeMounts:
+          - name: config
+            mountPath: /openedx/etc/config
+          resources:
+            requests:
+              memory: 2Gi
+          securityContext:
+            allowPrivilegeEscalation: true
+      volumes:
+        - name: config
+          configMap:
+            name: openedx-config

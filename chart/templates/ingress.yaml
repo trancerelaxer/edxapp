@@ -1,0 +1,35 @@
+{{ if .Values.ingress.enabled }}
+{{- $fullName := include "edxapp.fullname" . -}}
+{{- $svcPort := .Values.service.port -}}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: edxapp-{{ .Values.environment }}
+  annotations:
+    alb.ingress.kubernetes.io/certificate-arn: {{ .Values.ingress.acmCertificateArn }}
+    alb.ingress.kubernetes.io/group.name: {{ $fullName }}-{{ .Values.environment }}
+  {{- with .Values.ingress.annotations }}
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  tls:
+  {{- range .Values.ingress.tls }}
+    - hosts:
+      {{- range .hosts }}
+        - {{ . | quote }}
+      {{- end }}
+  {{- end }}
+  rules:
+  {{- range .Values.ingress.hosts }}
+  - host: {{ .host | quote }}
+    http:
+      paths:
+      - pathType: Prefix
+        path: "/"
+        backend:
+          service:
+            name: {{ $fullName }}-{{ .app  }}
+            port:
+              number: {{ $svcPort }}
+  {{- end }}
+{{ end }}
